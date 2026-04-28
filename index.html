@@ -469,10 +469,8 @@ async function loadGoals() {
   if (!data?.results) { el.innerHTML = '<div class="state-error">Error al cargar</div>'; return; }
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin goals activos</div>'; return; }
 
-  // Cargar total de ahorro acumulado desde Notion (todos los movimientos históricos)
-  const todosMovData = await query(DB.movimientos, {
-    property: 'Tipo', select: { equals: 'Gasto' }
-  });
+  // Cargar todos los movimientos históricos para calcular ahorro acumulado
+  const todosMovData = await query(DB.movimientos);
   const movimientos = todosMovData?.results || [];
 
   const colors = ['var(--green)', 'var(--blue)', 'var(--coral)'];
