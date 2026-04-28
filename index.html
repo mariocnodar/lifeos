@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Life OS" />
@@ -22,7 +23,6 @@
       --green: #1a9e6e;
       --green-bg: rgba(26,158,110,0.1);
       --blue: #2563eb;
-      --blue-bg: rgba(37,99,235,0.1);
       --amber: #d97706;
       --amber-bg: rgba(217,119,6,0.1);
       --red: #dc2626;
@@ -166,7 +166,7 @@
 </div>
 
 <script>
-const PROXY = 'https://nutrition-tracker-proxy.vercel.app/api/notion';
+const PROXY = 'https://lifeos-blue-iota.vercel.app/api/notion';
 
 const DB = {
   dailyRoutine: '8a5f99ee-6960-8276-920a-076337e9f6ac',
@@ -257,13 +257,17 @@ async function loadMetricas() {
     filter: { property: 'Fecha', date: { equals: hoy } }
   });
   let calsIn = 0;
-  if (nutData?.results) nutData.results.forEach(p => { calsIn += p.properties['Calorías']?.number || p.properties['calorias']?.number || 0; });
+  if (nutData?.results) nutData.results.forEach(p => {
+    calsIn += p.properties['Calorías']?.number || p.properties['calorias']?.number || 0;
+  });
 
   const depData = await query(DB.deporte, {
     filter: { property: 'Fecha', date: { equals: hoy } }
   });
   let calsOut = 0;
-  if (depData?.results) depData.results.forEach(p => { calsOut += p.properties['Calorías quemadas']?.number || 0; });
+  if (depData?.results) depData.results.forEach(p => {
+    calsOut += p.properties['Calorías quemadas']?.number || 0;
+  });
 
   document.getElementById('cals-in').textContent  = calsIn  > 0 ? Math.round(calsIn)  : '—';
   document.getElementById('cals-out').textContent = calsOut > 0 ? Math.round(calsOut) : '—';
