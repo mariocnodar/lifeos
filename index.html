@@ -193,6 +193,7 @@
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const PROXY = '/api/notion';  // mismo dominio, no necesita URL absoluta
 const SUELDO = 1600;
+const CAT_AHORRO = 'Ahorro / Inversión ';
 
 const DB = {
   dailyRoutine: '288f99ee-6960-8291-87bc-018e7bc45478',
@@ -373,27 +374,32 @@ async function loadMetricas() {
     ]
   });
 
-  let ingresos = 0, gastosTotales = 0, gastosVariables = 0, gastosCount = 0;
+  let ingresos = 0, gastosTotales = 0, gastosVariables = 0, gastosCount = 0, ahorro = 0;
   if (movData?.results) {
     movData.results.forEach(p => {
       const props    = p.properties || {};
       const tipo     = props.Tipo?.select?.name || '';
       const fijo     = props.Fijo?.checkbox === true;
       const cantidad = props.Cantidad?.number || 0;
+      const cat      = props['Categoría']?.select?.name || '';
       if (tipo === 'Ingreso') {
         ingresos += cantidad;
       }
       if (tipo === 'Gasto') {
-        gastosTotales += cantidad;
-        if (!fijo) {
-          gastosVariables += cantidad;
-          gastosCount++;
+        if (cat === CAT_AHORRO) {
+          ahorro += cantidad;
+        } else {
+          gastosTotales += cantidad;
+          if (!fijo) {
+            gastosVariables += cantidad;
+            gastosCount++;
+          }
         }
       }
     });
   }
 
-  const disponible = ingresos - gastosTotales;
+  const disponible = ingresos - gastosTotales - ahorro;
   document.getElementById('disponible-val').textContent = Math.round(disponible);
   document.getElementById('disponible-sub').textContent = `de ${Math.round(ingresos)}€ ingresos`;
   document.getElementById('gastos-val').textContent     = Math.round(gastosVariables);
@@ -463,15 +469,23 @@ async function loadGoals() {
   if (!data?.results) { el.innerHTML = '<div class="state-error">Error al cargar</div>'; return; }
   if (!data.results.length) { el.innerHTML = '<div class="state-empty">Sin goals activos</div>'; return; }
 
+  // Cargar total de ahorro acumulado desde Notion (todos los movimientos históricos)
+  const todosMovData = await query(DB.movimientos, {
+    property: 'Tipo', select: { equals: 'Gasto' }
+  });
+  const movimientos = todosMovData?.results || [];
+
   const colors = ['var(--green)', 'var(--blue)', 'var(--coral)'];
   const hoy    = new Date();
 
-  el.innerHTML = data.results.map((p, i) => {
-    const name       = p.properties['Vision Goals']?.title?.[0]?.plain_text || 'Goal';
-    const targetDate = p.properties['Target Date']?.date?.start;
-    const createdAt  = p.created_time;
+  el.innerHTML = await Promise.all(data.results.map(async (p, i) => {
+    const name        = p.properties['Vision Goals']?.title?.[0]?.plain_text || 'Goal';
+    const targetDate  = p.properties['Target Date']?.date?.start;
+    const createdAt   = p.created_time;
+    const objetivoEur = p.properties['Objetivo €']?.number || null;
 
     let progreso = 2, diasRestantes = '—', fechaInicioStr = '—', fechaFinStr = '—';
+    let euroHTML = '';
 
     if (targetDate && createdAt) {
       const inicio      = new Date(createdAt);
@@ -480,12 +494,31 @@ async function loadGoals() {
       const diasPasados = Math.max(0, Math.round((hoy - inicio) / 86400000));
       const diff        = Math.ceil((fin - hoy) / 86400000);
 
-      diasRestantes  = diff > 0 ? `${diff}d restantes` : 'Vencido';
-      progreso       = Math.max(2, Math.min(98, Math.round((diasPasados / totalDias) * 100)));
+      diasRestantes = diff > 0 ? `${diff}d restantes` : 'Vencido';
+      progreso      = Math.max(2, Math.min(98, Math.round((diasPasados / totalDias) * 100)));
 
       const fmt = d => `${d.getDate()} ${MESES[d.getMonth()].slice(0,3)}`;
       fechaInicioStr = fmt(inicio);
       fechaFinStr    = fmt(fin);
+
+      // Si tiene objetivo en euros, calcular progreso económico
+      if (objetivoEur) {
+        const inicioStr = inicio.toISOString().split('T')[0];
+        const ahorroAcumulado = movimientos
+          .filter(m => {
+            const cat = m.properties['Categoría']?.select?.name || '';
+            const fecha = m.properties['Fecha']?.date?.start || '';
+            return cat === CAT_AHORRO && fecha >= inicioStr;
+          })
+          .reduce((s, m) => s + (m.properties['Cantidad']?.number || 0), 0);
+
+        const pctEur = Math.min(100, Math.round((ahorroAcumulado / objetivoEur) * 100));
+        euroHTML = `<div class="goal-pct" style="margin-top:3px;color:var(--green)">
+          ${Math.round(ahorroAcumulado).toLocaleString('es-ES')}€ / ${objetivoEur.toLocaleString('es-ES')}€ · ${pctEur}%
+        </div>`;
+        // Sobreescribir progreso de barra con el económico
+        progreso = Math.max(2, Math.min(98, pctEur));
+      }
     }
 
     return `
@@ -498,8 +531,9 @@ async function loadGoals() {
           <div class="goal-fill" style="width:${progreso}%;background:${colors[i%colors.length]}"></div>
         </div>
         <div class="goal-pct">${fechaInicioStr} → ${fechaFinStr} · ${progreso}%</div>
+        ${euroHTML}
       </div>`;
-  }).join('');
+  })).then(rows => rows.join(''));
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
