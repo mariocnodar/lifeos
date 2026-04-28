@@ -206,17 +206,21 @@ function setFecha() {
 function getPeriodo25() {
   const hoy = new Date();
   const dia = hoy.getDate();
-  let inicio, fin;
+  const pad = n => String(n).padStart(2, '0');
+
+  let iY, iM, iD, fY, fM, fD;
   if (dia >= 25) {
-    inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 25);
-    fin    = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 24);
+    iY = hoy.getFullYear(); iM = hoy.getMonth() + 1; iD = 25;
+    const finDate = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 24);
+    fY = finDate.getFullYear(); fM = finDate.getMonth() + 1; fD = 24;
   } else {
-    inicio = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 25);
-    fin    = new Date(hoy.getFullYear(), hoy.getMonth(), 24);
+    const inicioDate = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 25);
+    iY = inicioDate.getFullYear(); iM = inicioDate.getMonth() + 1; iD = 25;
+    fY = hoy.getFullYear(); fM = hoy.getMonth() + 1; fD = 24;
   }
   return {
-    inicio: inicio.toISOString().split('T')[0],
-    fin:    fin.toISOString().split('T')[0]
+    inicio: `${iY}-${pad(iM)}-${pad(iD)}`,
+    fin:    `${fY}-${pad(fM)}-${pad(fD)}`
   };
 }
 
