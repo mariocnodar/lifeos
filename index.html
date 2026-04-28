@@ -173,7 +173,7 @@ const DB = {
   weeklyHabits: 'a79f99ee-6960-83dc-bbef-8126e748db3b',
   tareas:       '34ff99ee-6960-8042-b1f3-ed74fcb93597',
   movimientos:  '78b3ed9a-16db-4a6f-bbf5-1b1fb0dd3d8e',
-  nutricion:    '34ef99ee-6960-800a-8c57-e61ac53a587a',
+  nutricion:    '34ef99ee-6960-8094-8965-000b516cd488',
   deporte:      '34ef99ee-6960-8034-9c00-d2a969fae248',
   goals:        '102f99ee-6960-82ce-b4b9-016e0c04f057'
 };
@@ -257,8 +257,7 @@ async function loadMetricas() {
   });
   let calsIn = 0;
   if (nutData?.results) nutData.results.forEach(p => {
-    calsIn += p.properties['Calorías']?.number || p.properties['calorias']?.number || 0;
-  });
+calsIn += p.properties['Calorías ']?.number || p.properties['Calorías']?.number || 0;  });
 
   const depData = await query(DB.deporte, {
     filter: { property: 'Fecha', date: { equals: hoy } }
