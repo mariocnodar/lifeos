@@ -236,15 +236,24 @@ async function query(dbId, filter, sorts) {
 }
 
 // ─── HÁBITOS ──────────────────────────────────────────────────────────────────
-async function toggleHabito(pageId, checkEl, done) {
+async function getWeeklyHoyId() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const data = await query(DB.weeklyHabits, {
+    property: 'Date', date: { equals: hoy }
+  });
+  if (data?.results?.length) return data.results[0].id;
+  return null;
+}
+
+async function toggleHabito(pageId, habitName, checkEl, done) {
   const nuevoEstado = !done;
-  // Actualiza visualmente al momento
   checkEl.classList.toggle('done', nuevoEstado);
   const nameEl = checkEl.nextElementSibling;
   nameEl.classList.toggle('done', nuevoEstado);
   checkEl.dataset.done = nuevoEstado;
 
   try {
+    // Actualiza Daily Routine
     await fetch(PROXY, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -253,8 +262,21 @@ async function toggleHabito(pageId, checkEl, done) {
         properties: { Checkbox: { checkbox: nuevoEstado } }
       })
     });
+
+    // Actualiza Weekly Habits si el hábito tiene columna equivalente
+    const weeklyId = await getWeeklyHoyId();
+    if (weeklyId) {
+      await fetch(PROXY, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageId: weeklyId,
+          properties: { [habitName]: { checkbox: nuevoEstado } }
+        })
+      });
+    }
   } catch(e) {
-    // Si falla, revertir
+    // Revertir si falla
     checkEl.classList.toggle('done', done);
     nameEl.classList.toggle('done', done);
     checkEl.dataset.done = done;
@@ -272,7 +294,7 @@ async function loadHabitos() {
     const name = p.properties.Name.title[0].plain_text;
     const done = p.properties.Checkbox?.checkbox || false;
     const tag  = franjas[p.properties.Routine?.select?.name] || '';
-    return `<div class="habit-row"><div class="check ${done?'done':''}" data-done="${done}" onclick="toggleHabito('${p.id}', this, this.dataset.done === 'true')"></div><span class="habit-name ${done?'done':''}">${name}</span>${tag?`<span class="habit-tag">${tag}</span>`:''}</div>`;
+    return `<div class="habit-row"><div class="check ${done?'done':''}" data-done="${done}" onclick="toggleHabito('${p.id}', '${name.replace(/'/g, "\'")}', this, this.dataset.done === 'true')"></div><span class="habit-name ${done?'done':''}">${name}</span>${tag?`<span class="habit-tag">${tag}</span>`:''}</div>`;
   }).join('');
 }
 
